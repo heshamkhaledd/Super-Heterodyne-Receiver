@@ -32,46 +32,9 @@ SkyNewsArabia = padarray(SkyNewsArabia, (Max_Size - length(SkyNewsArabia)), 'pos
 if isequal(BBCArabic_2_samples,FM9090_samples,QuranPalestine_samples,SkyNewsArabia_samples)
     Fs = BBCArabic_2_samples;
 end
-%% Soft Plotting to check %%
-subplot(2,2,1);
-plot(BBCArabic_2)
-title('BBCArabic 2');
-xlabel('Time');
-subplot(2,2,2);
-plot(FM9090);
-title('FM9090');
-xlabel('Time');
-subplot(2,2,3);
-plot(QuranPalestine);
-title('QuranPalestine');
-xlabel('Time');
-subplot(2,2,4);
-plot(SkyNewsArabia);
-title('SkyNewsArabia');
-xlabel('Time');
-figure;
-
-subplot(2,2,1);
-plot(abs(fftshift(fft(BBCArabic_2))));
-title('BBCArabic 2');
-xlabel('Frequency');
-subplot(2,2,2);
-plot(abs(fftshift(fft(FM9090))));
-title('FM9090');
-xlabel('Frequency');
-subplot(2,2,3);
-plot(abs(fftshift(fft(QuranPalestine))));
-title('QuranPalestine');
-xlabel('Frequency');
-subplot(2,2,4);
-plot(abs(fftshift(fft(SkyNewsArabia))));
-title('SkyNewsArabia');
-xlabel('Frequency');
-figure
-
 %% AM Modulation Stage %%
 
-% Generating Carriers with Fc= 100+ n+?F -> where ?F= 50 kHZ %
+% Generating Carrier Frequencies with Fc= 100+ n+?F -> where ?F= 50 kHZ %
 Carriers_Frequencies = (100000:50000:250000);
 n = 1;
 % Checking if Nyquist rate critiria is achieved, If not, get the %
@@ -96,19 +59,51 @@ Ts = 1/Fs;
 N = 0:1:(Max_Size-1);
 Carriers = zeros(4,Max_Size);
 
+% Generating Carriers %
 for Idx = 1:4
    Carriers(Idx,:) = cos(2*pi*Carriers_Frequencies(Idx)*N*Ts);
 end
+% Modulating the Signals by multiplying them with the carriers %
 mod_BBCArabic_2 = BBCArabic_2.*Carriers(1,:)';
 mod_FM9090 = FM9090.*Carriers(2,:)';
 mod_QuranPalestine = QuranPalestine.*Carriers(3,:)';
 mod_SkyNewsArabia = SkyNewsArabia.*Carriers(4,:)';
 
+% Adding the modulated signals to construct the FDM signal %
 FDM = mod_BBCArabic_2 + mod_FM9090 + mod_QuranPalestine + mod_SkyNewsArabia;
 
-W_axis = -Fs/2 : (Fs/length(FDM)) : Fs/2 - (Fs/length(FDM));
-plot(W_axis,(abs(fftshift(fft(FDM)))));
-xlabel('Frequency');
-title('FDM Signal');
 %% RF Stage %%
+% We need to calculate the signal's bandwidth in order to calculathe the
+% Bandpass filter parameters, so, I calculated them graphically by plotting
+% each one of them and substitute its value in the following array %
+BW = [17000 17000 10000 16000];
 
+% a dialog box to gather info about the required channel %
+channel = 1;
+trial = 1;
+while (channel > 4 || channel < 1 || trial == 1)
+    if (trial == 1)
+        prompt = {sprintf('Enter the number of the required channel:\nKindly, From 1 to 4:')};
+        trial = trial + 1;
+    else
+        prompt = {sprintf('Wrong Number!!\nEnter the number of the required channel:\nKindly, From 1 to 4:')};
+    end
+dlgtitle = 'Super-Heterodyne Receiver';
+dims = [4 50];
+channel = str2double(inputdlg(prompt,dlgtitle,dims));
+end
+
+CH_Received = BandPass(FDM,Carriers_Frequencies(channel),BW(channel),Fs);
+
+function y = BandPass(Signal, CenterFrequency, Bandwidth, SamplingFreq)
+
+Fst1 = CenterFrequency - (Bandwidth/2) - 5000;
+Fp1 = CenterFrequency - (Bandwidth/2);
+Fp2 = CenterFrequency + (Bandwidth/2);
+Fst2 = CenterFrequency + (Bandwidth/2) + 5000;
+
+BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,SamplingFreq);
+BPF = design(BandPassSpecObj,'equiripple');
+
+y = filter(BPF,Signal);
+end
