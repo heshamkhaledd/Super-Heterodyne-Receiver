@@ -73,9 +73,10 @@ mod_SkyNewsArabia = SkyNewsArabia.*Carriers(4,:)';
 FDM = mod_BBCArabic_2 + mod_FM9090 + mod_QuranPalestine + mod_SkyNewsArabia;
 
 %% RF Stage %%
-% We need to calculate the signal's bandwidth in order to calculathe the
+% We need to calculate the signal's bandwidth in order to calculate the
 % Bandpass filter parameters, so, I calculated them graphically by plotting
-% each one of them and substitute its value in the following array %
+% each one of them and substitute its value in the following array,
+% where each element is corresponding to the order of the entered channels
 BW = [17000 17000 10000 16000];
 
 % a dialog box to gather info about the required channel %
@@ -83,7 +84,7 @@ channel = 1;
 trial = 1;
 while (channel > 4 || channel < 1 || trial == 1)
     if (trial == 1)
-        prompt = {sprintf('Enter the number of the required channel:\nKindly, From 1 to 4:')};
+        prompt = {sprintf('Enter the number of the required channel:\nKindly, From 1 to 4')};
         trial = trial + 1;
     else
         prompt = {sprintf('Wrong Number!!\nEnter the number of the required channel:\nKindly, From 1 to 4:')};
@@ -92,18 +93,26 @@ dlgtitle = 'Super-Heterodyne Receiver';
 dims = [4 50];
 channel = str2double(inputdlg(prompt,dlgtitle,dims));
 end
-
-CH_Received = BandPass(FDM,Carriers_Frequencies(channel),BW(channel),Fs);
-
-function y = BandPass(Signal, CenterFrequency, Bandwidth, SamplingFreq)
-
-Fst1 = CenterFrequency - (Bandwidth/2) - 5000;
-Fp1 = CenterFrequency - (Bandwidth/2);
-Fp2 = CenterFrequency + (Bandwidth/2);
-Fst2 = CenterFrequency + (Bandwidth/2) + 5000;
-
-BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,SamplingFreq);
+% This block is responsible for making the bandpass filter behaviour
+% using the fdesign function to specify the filter specs, and design
+% function to generate the physical filter %
+Fst1 = Carriers_Frequencies(channel) - (BW(channel)/2) - 5000;
+Fp1 = Carriers_Frequencies(channel) - (BW(channel)/2);
+Fp2 = Carriers_Frequencies(channel) + (BW(channel)/2);
+Fst2 = Carriers_Frequencies(channel) + (BW(channel)/2) + 5000;
+BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,Fs);
 BPF = design(BandPassSpecObj,'equiripple');
+CH_Received = filter(BPF,FDM);
 
-y = filter(BPF,Signal);
-end
+%% Mixer Stage %%
+Oscillator = cos(2*pi*(Carriers_Frequencies(channel)+25000)*N*Ts);
+CH_Received = CH_Received.*Oscillator';
+
+%% IF Stage %%
+Fst1 = 25000 - (BW(channel)/2) - 5000;
+Fp1 = 25000 - (BW(channel)/2);
+Fp2 = 25000 + (BW(channel)/2);
+Fst2 = 25000 + (BW(channel)/2) + 5000;
+BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,Fs);
+BPF = design(BandPassSpecObj,'equiripple');
+CH_Received = filter(BPF,CH_Received);

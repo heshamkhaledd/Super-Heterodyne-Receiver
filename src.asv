@@ -73,30 +73,42 @@ mod_SkyNewsArabia = SkyNewsArabia.*Carriers(4,:)';
 FDM = mod_BBCArabic_2 + mod_FM9090 + mod_QuranPalestine + mod_SkyNewsArabia;
 
 %% RF Stage %%
-% We need to calculate the signal's bandwidth in order to calculathe the
+% We need to calculate the signal's bandwidth in order to calculate the
 % Bandpass filter parameters, so, I calculated them graphically by plotting
-% each one of them and substitute its value in the following array %
+% each one of them and substitute its value in the following array,
+% where each element is corresponding to the order of the entered channels
 BW = [17000 17000 10000 16000];
-CH_1 = zeros(1
-CH_1 = BandPass(FDM,Carriers_Frequencies(1),BW(1),Fs);
-XX = -Fs/2 : (Fs/Max_Size) : Fs/2 - (Fs/Max_Size) ;
-plot(XX,abs(fftshift(fft(CH1))));
 
-function y = BandPass(Signal, CenterFreq, BandWidth, SamplingFreq)
+% a dialog box to gather info about the required channel %
+channel = 1;
+trial = 1;
+while (channel > 4 || channel < 1 || trial == 1)
+    if (trial == 1)
+        prompt = {sprintf('Enter the number of the required channel:\nKindly, From 1 to 4')};
+        trial = trial + 1;
+    else
+        prompt = {sprintf('Wrong Number!!\nEnter the number of the required channel:\nKindly, From 1 to 4:')};
+    end
+dlgtitle = 'Super-Heterodyne Receiver';
+dims = [4 50];
+channel = str2double(inputdlg(prompt,dlgtitle,dims));
+end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%This Bandpass is operation specific. The difference between the bandstop
-%edge and bandpass edge is set to 10khz as the messages in this specific
-%operation are multiplexed with 60khz difference between them
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+CH_Received = BandPass(FDM,Carriers_Frequencies(channel),BW(channel),Fs);
+% This function is responsible for making the bandpass filter behaviour
+% using the fdesign function to specify the filter specs, and design
+% function to generate the physical filter %
+function y = BandPass(Signal, CenterFrequency, Bandwidth, SamplingFreq)
+Fst1 = CenterFrequency - (Bandwidth/2) - 5000;
+Fp1 = CenterFrequency - (Bandwidth/2);
+Fp2 = CenterFrequency + (Bandwidth/2);
+Fst2 = CenterFrequency + (Bandwidth/2) + 5000;
 
-Fst1 = CenterFreq - (BandWidth/2) - 10000;
-Fp1 = CenterFreq - (BandWidth/2);
-Fp2 = CenterFreq + (BandWidth/2);
-Fst2 = CenterFreq + (BandWidth/2) + 10000;
-
-d = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,SamplingFreq);
-BPF = design(d,'equiripple');
+BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,SamplingFreq);
+BPF = design(BandPassSpecObj,'equiripple');
 
 y = filter(BPF,Signal);
 end
+
+%% Mixer Stage %%
+Oscillator) = cos(2*pi*Carriers_Frequencies(Idx)*N*Ts);
