@@ -5,7 +5,6 @@
 % analog communication system. Specifically, an AM modulator and        %
 % a corresponding super-heterodyne receiver.                            %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-close all
 
 %% Initializing Channels and Preparing them for Modulation  %%
 % Signals Reading %
@@ -116,3 +115,19 @@ Fst2 = 25000 + (BW(channel)/2) + 5000;
 BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,Fs);
 BPF = design(BandPassSpecObj,'equiripple');
 CH_Received = filter(BPF,CH_Received);
+
+%% Bandbase Detection %%
+Oscillator = cos(2*pi*25000*N*Ts);
+CH_Received = CH_Received.*Oscillator';
+Fp = 25000;
+Fst = 25000 + 5000;
+LowPassSpecObj = fdesign.lowpass('Fp,Fst,Ap,Ast',Fp,Fst,1,60,Fs);
+LPF = design(LowPassSpecObj,'equiripple');
+CH_Received = filter(LPF,CH_Received);
+
+%Downsample the Received channel to decrease the size of the output file %
+CH_Received = downsample(CH_Received,n);
+
+% Write the audiofile.wav %
+audiowrite('received_channel.wav',CH_Received,44100);
+msgbox({'Reception Completed';'Check the project directory for the output channel'});
