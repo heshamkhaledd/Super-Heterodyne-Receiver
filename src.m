@@ -31,12 +31,13 @@ SkyNewsArabia = padarray(SkyNewsArabia, (Max_Size - length(SkyNewsArabia)), 'pos
 if isequal(BBCArabic_2_samples,FM9090_samples,QuranPalestine_samples,SkyNewsArabia_samples)
     Fs = BBCArabic_2_samples;
 end
+
 %% AM Modulation Stage %%
 
 % Generating Carrier Frequencies with Fc= 100+ n+?F -> where ?F= 50 kHZ %
 Carriers_Frequencies = (100000:50000:250000);
 n = 1;
-% Checking if Nyquist rate critiria is achieved, If not, get the %
+% Checking if Nyquist rate criteria is achieved, If not, get the %
 % multiplier required to resample the signals %
 for Idx = 1:4
     while ((n*Fs/2) < Carriers_Frequencies(Idx) )
@@ -52,7 +53,6 @@ SkyNewsArabia = interp(SkyNewsArabia,n);
 % Update older values to new values after resampling the signals %
 Fs = n*Fs;
 Max_Size = length(BBCArabic_2);
-
 % Create Carrier's Parameters %
 Ts = 1/Fs;
 N = 0:1:(Max_Size-1);
@@ -70,7 +70,6 @@ mod_SkyNewsArabia = SkyNewsArabia.*Carriers(4,:)';
 
 % Adding the modulated signals to construct the FDM signal %
 FDM = mod_BBCArabic_2 + mod_FM9090 + mod_QuranPalestine + mod_SkyNewsArabia;
-
 %% RF Stage %%
 % We need to calculate the signal's bandwidth in order to calculate the
 % Bandpass filter parameters, so, I calculated them graphically by plotting
@@ -102,11 +101,9 @@ Fst2 = Carriers_Frequencies(channel) + (BW(channel)/2) + 5000;
 BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,Fs);
 BPF = design(BandPassSpecObj,'equiripple');
 CH_Received = filter(BPF,FDM);
-
 %% Mixer Stage %%
-Oscillator = cos(2*pi*(Carriers_Frequencies(channel)+25000)*N*Ts);
+Oscillator = cos(2*pi*((Carriers_Frequencies(channel))+25000)*N*Ts);
 CH_Received = CH_Received.*Oscillator';
-
 %% IF Stage %%
 Fst1 = 25000 - (BW(channel)/2) - 5000;
 Fp1 = 25000 - (BW(channel)/2);
@@ -115,18 +112,17 @@ Fst2 = 25000 + (BW(channel)/2) + 5000;
 BandPassSpecObj = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',Fst1,Fp1,Fp2,Fst2,60,1,60,Fs);
 BPF = design(BandPassSpecObj,'equiripple');
 CH_Received = filter(BPF,CH_Received);
-
 %% Bandbase Detection %%
 Oscillator = cos(2*pi*25000*N*Ts);
 CH_Received = CH_Received.*Oscillator';
-Fp = 25000;
-Fst = 25000 + 5000;
+Fp = BW(channel)/2;
+Fst = BW(channel)/2 + 5000;
 LowPassSpecObj = fdesign.lowpass('Fp,Fst,Ap,Ast',Fp,Fst,1,60,Fs);
 LPF = design(LowPassSpecObj,'equiripple');
 CH_Received = filter(LPF,CH_Received);
 
 %Downsample the Received channel to decrease the size of the output file %
-CH_Received = downsample(CH_Received,n);
+CH_Received = 5*downsample(CH_Received,n);
 
 % Write the audiofile.wav %
 audiowrite('received_channel.wav',CH_Received,44100);
