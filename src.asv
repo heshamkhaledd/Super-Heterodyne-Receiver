@@ -130,5 +130,5 @@ plot(X_Freq,(abs(fftshift(fft(CH_Received)))));
 CH_Received = downsample(CH_Received,n);
 
 % Write the audiofile.wav %
-audiowrite('received_channel.wav',CH_Received,44100);
+audiowi('received_channel.wav',CH_Received,44100);
 msgbox({'Reception Completed';'Check the project directory for the output channel'});
